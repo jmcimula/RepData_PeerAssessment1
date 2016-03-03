@@ -1,25 +1,105 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "JHU > Data Science Specialization : Reproducible Research Assignment 1"
+author: "Jean Marie Cimula"
+date: "3 March 2016"
+output: html_document
 ---
 
+#Assignment
 
-## Loading and preprocessing the data
+This assignment will be described in multiple parts. You will need to write a report that answers the questions detailed below. Ultimately, you will need to complete the entire assignment in a single R markdown document that can be processed by knitr and be transformed into an HTML file.
 
+Throughout your report make sure you always include the code that you used to generate the output you present. When writing code chunks in the R markdown document, always use echo = TRUE so that someone else will be able to read the code. This assignment will be evaluated via peer assessment so it is essential that your peer evaluators be able to review the code for your analysis.
 
+For the plotting aspects of this assignment, feel free to use any plotting system in R (i.e., base, lattice, ggplot2)
 
-## What is mean total number of steps taken per day?
+Fork/clone the GitHub repository created for this assignment. You will submit this assignment by pushing your completed files into your forked repository on GitHub. The assignment submission will consist of the URL to your GitHub repository and the SHA-1 commit ID for your repository state.
 
-
-
-## What is the average daily activity pattern?
-
-
-
-## Imputing missing values
+NOTE: The GitHub repository also contains the dataset for the assignment so you do not have to download the data separately.
 
 
+```{r,echo=FALSE}
+library(ggplot2)
+library(scales)
+library(Hmisc)
+```
+##Loading and preprocessing the data
 
-## Are there differences in activity patterns between weekdays and weekends?
+1. Load the data (i.e. read.csv())
+2. Process/transform the data (if necessary) into a format suitable for your analysis
+```{r}
+if(!file.exists('activity.csv')){unzip('activity.zip')
+}
+dataSet <- read.csv('activity.csv')
+str(dataSet)
+```
+
+##What is mean total number of steps taken per day?
+```{r}
+sbDay <- tapply(dataSet$steps, dataSet$date, sum, na.rm=TRUE)
+```
+1. Make a histogram of the total number of steps taken each day
+```{r}
+qplot(sbDay, xlab='Total steps per day', ylab='Frequency using binwith 500', binwidth=500)
+```
+2. Calculate and report the mean and median total number of steps taken per day
+```{r}
+dailyMean <- mean(sbDay)
+dailyMedian <- median(sbDay)
+```
+(2.1.) Mean: `r dailyMean` and (2.2.) Median: `r dailyMedian`
+
+
+##What is the average daily activity pattern?
+```{r}
+avgDailyActiv <- aggregate(x=list(meanSteps=dataSet$steps), by=list(interval=dataSet$interval), FUN=mean, na.rm=TRUE)
+```
+1. Make a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+```{r}
+ggplot(data=avgDailyActiv, aes(x=interval, y=meanSteps)) + geom_line() + xlab("5-minute interval") + ylab("Average of steps taken") 
+```
+2. Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+```{r}
+mStp <- which.max(avgDailyActiv$meanSteps) 
+timemStp <-  gsub("([0-9]{1,2})([0-9]{2})", "\\1:\\2", avgDailyActiv[mStp,'interval'])
+```
+(2.1.) Most Steps : `r timemStp`
+
+##Imputing missing values
+
+1. Calculate and report the total number of missing values in the dataset
+```{r}
+nbMissVal <- length(which(is.na(dataSet$steps)))
+```
+(1.1.) Number of missing values: `r nbMissVal`
+
+2. Devise a strategy for filling in all of the missing values in the dataset.
+
+3. Create a new dataset that is equal to the original dataset but with the missing data filled in.
+```{r}
+DSI <- dataSet
+DSI$steps <- impute(dataSet$steps, fun=mean)
+```
+4. Make a histogram of the total number of steps taken each day
+```{r}
+I <- tapply(DSI$steps, DSI$date, sum)
+qplot(I, xlab='Total steps per day (Imputed)', ylab='Frequency using binwith 500', binwidth=500)
+```
+... and Calculate and report the mean and median total number of steps taken per day.
+```{r}
+dMeanImp <- mean(I)
+dMedImp <- median(I)
+```
+(4.1.)Imputed Mean: `r dMeanImp` and (4.2.) Imputed Median > `r dMedImp`
+
+##Are there differences in activity patterns between weekdays and weekends?
+
+1. Create a new factor variable in the dataset with two levels - "weekday" and "weekend" indicating whether a given date is a weekday or weekend day.
+```{r}
+DSI$dateType <-  ifelse(as.POSIXlt(DSI$date)$wday %in% c(0,6), 'weekend', 'weekday')
+```
+2. Make a panel plot containing a time series plot
+```{r}
+AVG <- aggregate(steps ~ interval + dateType, data=DSI, mean)
+ggplot(AVG, aes(interval, steps)) + geom_line() + facet_grid(dateType ~ .) + xlab("5-minute interval") + ylab("avarage number of steps")
+```
